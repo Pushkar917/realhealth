@@ -23,20 +23,29 @@ class GetProfileAPIView(APIView):
         user_profile = Profile.objects.get(user=user)
         serializer = ProfileSerializer(user_profile, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
     
-class UpdateProfileAPIView(APIView):
+class GetAndUpdateProfileAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
-    serializer_class = UpdateProfileSerializer
+
+    def get(self, request, username):
+        user_profile=Profile.objects.get(user__username=username)
+        serializer = ProfileSerializer(user_profile, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+    
     def patch(self, request, username):
         try:
-            Profile.objects.get(user__username=username)
+            profile=Profile.objects.get(user__username=username)
         except Profile.DoesNotExist:
-            raise ProfileNotFound
+            raise "Profile Not Found"
         
         data = request.data
         logger.info(data)
-        serializer = UpdateProfileSerializer(instance=request.user.profile, data=data, partial=True)
-        serializer.is_valid()
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer = UpdateProfileSerializer(instance=profile, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
